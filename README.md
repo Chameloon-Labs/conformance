@@ -63,7 +63,8 @@ Every access problem is `401` with a JSON body `{"error": "<one short sentence>"
   - `X-Chameloon-Signature`: ECDSA P-256 with SHA-256 over
     `METHOD + "\n" + path?query + "\n" + time + "\n" + hex(sha256(raw body))`, the signature as raw `r‖s`
     (64 bytes), base64. The path and query exactly as requested; an empty body hashes the empty string.
-  - Refuse a signature seen in the last 10 minutes (replays).
+  - Refuse a request signed by the same key over the same text in the last 10 minutes (replays). Remember
+    `sha256(key + "\n" + signed text)`, not the signature: an ECDSA signature has a second valid form (`s` → `n − s`).
   - A key listed in `auth.json` `devices` gets in. An unknown key needs `X-Chameloon-Invite` matching an
     `auth.json` invite with `uses` > 0 or `uses: null` (unlimited). The server then adds
     `{"key", "device": <X-Chameloon-Device>, "added": <ISO time>, "note": <the invite's note>}` to `devices`,

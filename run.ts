@@ -81,9 +81,11 @@ const post = (path: string, body: unknown, headers: Record<string, string> = {})
 async function phone(device = `phone-${crypto.randomUUID().slice(0, 8)}`) {
   const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
   const key = b64(await crypto.subtle.exportKey("raw", keys.publicKey)); // X9.63, uncompressed
+  let last = 0;
   const signed = async (method: string, path: string, opts: { body?: unknown; invite?: string; time?: number; sig?: string; sendBody?: string } = {}) => {
     const raw = opts.body === undefined ? new Uint8Array() : enc.encode(JSON.stringify(opts.body));
-    const time = String(opts.time ?? Date.now());
+    // a phone never signs the same text twice: the same request in the same millisecond would be a replay
+    const time = String(opts.time ?? (last = Math.max(Date.now(), last + 1)));
     const sig = opts.sig ?? b64(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, keys.privateKey, enc.encode(await canonical(method, path, time, raw))));
     const headers: Record<string, string> = { "X-Chameloon-Key": key, "X-Chameloon-Time": time, "X-Chameloon-Signature": sig, "X-Chameloon-Device": device, "X-Chameloon-App": "conformance" };
     if (opts.invite) headers["X-Chameloon-Invite"] = opts.invite;
@@ -185,6 +187,17 @@ test('auth "device": replays, forgeries, tampering and old clocks are refused', 
   eq((await fetch(base + "/locked/space", once)).status, 200, "a signed request");
   eq((await fetch(base + "/locked/space", once)).status, 401, "the same signature again (a replay)");
   eq((await p.fetch("GET", "/locked/space", { sig: b64(new Uint8Array(64)) })).status, 401, "a forged signature");
+  // ECDSA signatures come in two valid forms (s and n - s): a replay with the other form must be refused too
+  const orig = await p.signed("GET", "/locked/space");
+  eq((await fetch(base + "/locked/space", orig)).status, 200, "a signed request");
+  const h = orig.headers as Record<string, string>;
+  const raw = Uint8Array.from(atob(h["X-Chameloon-Signature"]), (c) => c.charCodeAt(0));
+  const n = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551n;
+  const s = BigInt("0x" + hex(raw.slice(32).buffer));
+  const flipped = new Uint8Array(64);
+  flipped.set(raw.slice(0, 32));
+  flipped.set(Uint8Array.from((n - s).toString(16).padStart(64, "0").match(/../g)!.map((x) => parseInt(x, 16))), 32);
+  eq((await fetch(base + "/locked/space", { ...orig, headers: { ...h, "X-Chameloon-Signature": b64(flipped) } })).status, 401, "a replay with the signature's other valid form (s → n − s)");
   const forSpace = await p.signed("GET", "/locked/space");
   eq((await fetch(base + "/locked/img/a.png", forSpace)).status, 401, "a signature for another path");
   const tampered = await p.signed("POST", "/locked/sync", { body: { device: p.device, ops: [], cursor: 0 }, sendBody: JSON.stringify({ device: p.device, ops: [], cursor: 99 }) });
