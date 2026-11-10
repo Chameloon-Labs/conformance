@@ -1,11 +1,16 @@
-# Chameloon server conformance
+<a href="https://github.com/Chameloon-Labs/conformance"><img src="https://raw.githubusercontent.com/Chameloon-Labs/conformance/main/.github/readme/banner.png" width="100%" alt="conformance, by chameloon labs. The tests every Chameloon space server passes, in any language. The pixel chameleon stands on a cloud, thinking." /></a>
+
+<p align="center">
+  <a href="https://chameloon.com/docs/"><img src="https://raw.githubusercontent.com/Chameloon-Labs/conformance/main/.github/readme/button-docs.png" height="52" alt="Read the docs" /></a>
+  <a href="https://chameloon.com/docs/protocol/"><img src="https://raw.githubusercontent.com/Chameloon-Labs/conformance/main/.github/readme/button-protocol.png" height="52" alt="The protocol" /></a>
+</p>
 
 Tests every Chameloon space server must pass, in any language. They talk to your server over HTTP exactly like the
 Chameloon app does (signed requests included), so a server that passes them works with the app.
 
 ```sh
 bun run.ts -- <command that serves a folder>          # {dir} and {port} are filled in, PORT and SPACES are set too
-bun run.ts -- bunx chameloon-serve {dir} --port {port}
+bun run.ts -- bunx --package @chameloon-labs/space chameloon-serve {dir} --port {port}
 bun run.ts -- python -m chameloon_space serve {dir} --port {port}
 bun run.ts --url http://localhost:8787                # a server you started on a copy of fixtures/spaces
 bun run.ts --only sync -- …                           # only the tests whose name contains "sync"
@@ -65,6 +70,8 @@ Every access problem is `401` with a JSON body `{"error": "<one short sentence>"
     (64 bytes), base64. The path and query exactly as requested; an empty body hashes the empty string.
   - Refuse a request signed by the same key over the same text in the last 10 minutes (replays). Remember
     `sha256(key + "\n" + signed text)`, not the signature: an ECDSA signature has a second valid form (`s` → `n − s`).
+    (Remembering the signature normalized to low `s` is just as safe.) Remember only requests you let in: a phone
+    refused for lack of an invite may send the same request again with one.
   - A key listed in `auth.json` `devices` gets in. An unknown key needs `X-Chameloon-Invite` matching an
     `auth.json` invite with `uses` > 0 or `uses: null` (unlimited). The server then adds
     `{"key", "device": <X-Chameloon-Device>, "added": <ISO time>, "note": <the invite's note>}` to `devices`,
@@ -91,7 +98,7 @@ Invite codes are 4 + 4 characters from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, like 
 - `push`: a push relay URL for this phone (optional; see the TypeScript server).
 - `version`: the space version the phone runs (optional).
 
-Answer `{"done": [every op id sent], "pull": {"<table>": [rows]}, "cursor", "version", "notify"?: [{"title", "body"}]}`:
+Rows and answers are JSON; key order doesn't matter. Answer `{"done": [every op id sent], "pull": {"<table>": [rows]}, "cursor", "version", "notify"?: [{"title", "body"}]}`:
 
 - Every stored row gets a new sequence number when written. `pull` has every row with a sequence number above the
   phone's `cursor` that wasn't written by this phone (rows the bot writes go to every phone). `cursor` is the newest
@@ -123,3 +130,6 @@ The `echo` space needs this bot, written in your language:
 | `hook(body, store, headers)` | `store.put("inbox", {"id": body.id, "text": body.text})`, returns `{"ok": true, "echoed": body.text}` |
 
 `fixtures/spaces/echo/bot.ts` is the TypeScript one.
+
+<br />
+<img src="https://raw.githubusercontent.com/Chameloon-Labs/conformance/main/.github/readme/footer.png" width="100%" alt="The pixel chameleon walks on the grass above the earth. chameloon labs. MIT license, © 2026 Chameloon Labs" />

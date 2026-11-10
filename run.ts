@@ -4,7 +4,7 @@
 // talks to it the way the app does (signed requests included).
 //
 //   bun run.ts -- <command that serves a folder>      {dir} and {port} are filled in
-//   bun run.ts -- bun ../sdk/bin/serve.ts {dir} --port {port}
+//   bun run.ts -- bunx --package @chameloon-labs/space chameloon-serve {dir} --port {port}
 //   bun run.ts --url http://localhost:8787            a server you started yourself on a copy of fixtures/spaces
 //
 // The `echo` space needs the echo bot (README.md). Exit code 0 when everything passes.
@@ -64,7 +64,9 @@ class Fail extends Error {}
 function expect(ok: unknown, what: string): asserts ok {
   if (!ok) throw new Fail(what);
 }
-const eq = (a: unknown, b: unknown, what: string) => expect(JSON.stringify(a) === JSON.stringify(b), `${what}: expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
+// JSON objects are compared without regard to key order (a Go map or a PHP array may reorder them)
+const sorted = (v: unknown): unknown => Array.isArray(v) ? v.map(sorted) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, x]) => [k, sorted(x)])) : v;
+const eq = (a: unknown, b: unknown, what: string) => expect(JSON.stringify(sorted(a)) === JSON.stringify(sorted(b)), `${what}: expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
 
 // ---- talking like the app
 const enc = new TextEncoder();
