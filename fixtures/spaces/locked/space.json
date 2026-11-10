@@ -1,0 +1,1 @@
+{ "name": "Locked", "version": 1, "auth": "device", "schema": [], "sync": { "tables": ["notes"] } }

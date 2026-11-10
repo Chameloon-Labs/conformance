@@ -1,0 +1,11 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Open",
+  "description": "No access rule: anyone with the address.",
+  "version": 3,
+  "icon": "list-check",
+  "tint": "#16A34A",
+  "schema": ["CREATE TABLE notes (id TEXT PRIMARY KEY, text TEXT NOT NULL)"],
+  "sync": { "tables": ["notes"] },
+  "pageScroll": { "chat": "bottom" }
+}

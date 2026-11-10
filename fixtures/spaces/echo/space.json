@@ -1,0 +1,1 @@
+{ "name": "Echo", "version": 1, "schema": [], "sync": { "tables": ["notes", "replies", "pongs", "inbox"] } }
